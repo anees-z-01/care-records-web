@@ -1,13 +1,18 @@
-import { createSlice, PayloadAction } from "@reduxjs/toolkit"
-import type { CareNotesState, Pagination } from "../../types"
-import { loadNotesFromLocalDB, syncNotesFromAPI, syncStatsFromAPI, addNote } from "./careNotesThunks"
-import type { DateRange } from '../../components/DateRangeSelector'
+import { createSlice, type PayloadAction } from "@reduxjs/toolkit"
+import type { CareNotesState, DateRange, PaginatedNotes } from "../../types"
+import { syncNotesFromAPI, syncStatsFromAPI, addNote } from "./careNotesThunks"
+import { DEFAULT_PAGE_SIZE } from "../../api/careNotesAPI"
+import { noteMatchesScope } from "./scope"
 
-const initialState: CareNotesState = {
+export const NOTES_ERROR = "Could not load care notes. Check that the API is reachable, then retry."
+export const STATS_ERROR = "Could not load statistics for this selection"
+
+export const initialState: CareNotesState = {
   notes: [],
   stats: null,
   loading: false,
   error: null,
+  statsLoading: false,
   statsError: null,
   lastSync: null,
   selectedTenantId: 1,
@@ -17,7 +22,26 @@ const initialState: CareNotesState = {
     currentPage: 1,
     totalPages: 1,
     totalItems: 0,
-    pageSize: 20
+    pageSize: DEFAULT_PAGE_SIZE,
+  },
+}
+
+// Any scope change makes in-flight responses stale; dropping the active
+// request ids means their late results are ignored by the fulfilled cases.
+function resetScopedData(state: CareNotesState) {
+  state.pagination.currentPage = 1
+  state.notes = []
+  state.stats = null
+  state.activeNotesRequestId = undefined
+  state.activeStatsRequestId = undefined
+}
+
+function toPagination(page: PaginatedNotes['pagination']) {
+  return {
+    currentPage: page.page,
+    totalPages: Math.max(1, page.total_pages),
+    totalItems: page.total,
+    pageSize: page.page_size,
   }
 }
 
@@ -25,69 +49,25 @@ const careNotesSlice = createSlice({
   name: "careNotes",
   initialState,
   reducers: {
-    setTenantId: (state, action) => {
+    setTenantId: (state, action: PayloadAction<number>) => {
       state.selectedTenantId = action.payload
-      state.pagination.currentPage = 1
       state.selectedFacilityIds = []
-      state.notes = []
-      state.stats = null
-      state.activeNotesRequestId = undefined
-      state.activeStatsRequestId = undefined
+      resetScopedData(state)
     },
-    setFacilityIds: (state, action) => {
+    setFacilityIds: (state, action: PayloadAction<number[]>) => {
       state.selectedFacilityIds = action.payload
-      state.pagination.currentPage = 1
-      state.notes = []
-      state.stats = null
-      state.activeNotesRequestId = undefined
-      state.activeStatsRequestId = undefined
+      resetScopedData(state)
     },
-    setPage: (state, action) => {
+    setPage: (state, action: PayloadAction<number>) => {
       state.pagination.currentPage = action.payload
-    },
-    clearError: (state) => {
-      state.error = null
-    },
-    setStats: (state, action) => {
-      state.stats = action.payload
-    },
-    setLastSync: (state, action) => {
-      state.lastSync = action.payload
-    },
-    setError: (state, action) => {
-      state.error = action.payload
     },
     setSelectedDateRange: (state, action: PayloadAction<DateRange>) => {
       state.selectedDateRange = action.payload
       state.stats = null
       state.activeStatsRequestId = undefined
     },
-    setPagination: (state, action: PayloadAction<Pagination>) => {
-      state.pagination = action.payload
-    }
   },
   extraReducers: (builder) => {
-    // Load notes from local DB
-    builder.addCase(loadNotesFromLocalDB.pending, (state) => {
-      state.loading = true
-      state.error = null
-    })
-    builder.addCase(loadNotesFromLocalDB.fulfilled, (state, action) => {
-      state.notes = action.payload.notes
-      state.pagination = {
-        currentPage: action.payload.pagination.page,
-        totalPages: action.payload.pagination.total_pages,
-        totalItems: action.payload.pagination.total,
-        pageSize: action.payload.pagination.page_size
-      }
-      state.loading = false
-    })
-    builder.addCase(loadNotesFromLocalDB.rejected, (state, action) => {
-      state.loading = false
-      state.error = action.error.message || "Failed to load notes"
-    })
-
-    // Sync notes from API
     builder.addCase(syncNotesFromAPI.pending, (state, action) => {
       state.activeNotesRequestId = action.meta.requestId
       state.loading = true
@@ -96,19 +76,14 @@ const careNotesSlice = createSlice({
     builder.addCase(syncNotesFromAPI.fulfilled, (state, action) => {
       if (state.activeNotesRequestId !== action.meta.requestId) return
       state.notes = action.payload.notes
-      state.pagination = {
-        currentPage: action.payload.pagination.page,
-        totalPages: action.payload.pagination.total_pages,
-        totalItems: action.payload.pagination.total,
-        pageSize: action.payload.pagination.page_size
-      }
+      state.pagination = toPagination(action.payload.pagination)
       state.loading = false
       state.lastSync = new Date().toISOString()
     })
     builder.addCase(syncNotesFromAPI.rejected, (state, action) => {
       if (state.activeNotesRequestId !== action.meta.requestId) return
       state.loading = false
-      state.error = action.error.message || "Failed to sync notes"
+      state.error = NOTES_ERROR
     })
 
     builder.addCase(syncStatsFromAPI.pending, (state, action) => {
@@ -120,21 +95,16 @@ const careNotesSlice = createSlice({
       if (state.activeStatsRequestId !== action.meta.requestId) return
       state.stats = action.payload
       state.statsLoading = false
-      state.lastSync = new Date().toISOString()
     })
     builder.addCase(syncStatsFromAPI.rejected, (state, action) => {
       if (state.activeStatsRequestId !== action.meta.requestId) return
       state.statsLoading = false
-      state.statsError = "Could not load statistics for this selection"
+      state.statsError = STATS_ERROR
     })
 
-    // Add new note
     builder.addCase(addNote.fulfilled, (state, action) => {
       const note = action.payload
-      const inScope =
-        note.tenant_id === state.selectedTenantId &&
-        (state.selectedFacilityIds.length === 0 || state.selectedFacilityIds.includes(note.facility_id))
-      if (!inScope) return
+      if (!noteMatchesScope(note, state.selectedTenantId, state.selectedFacilityIds)) return
       state.pagination.totalItems += 1
       if (state.pagination.currentPage === 1) {
         state.notes.unshift(note)
@@ -144,15 +114,5 @@ const careNotesSlice = createSlice({
   },
 })
 
-export const {
-  setTenantId,
-  setFacilityIds,
-  setPage,
-  clearError,
-  setStats,
-  setLastSync,
-  setError,
-  setSelectedDateRange,
-  setPagination
-} = careNotesSlice.actions
+export const { setTenantId, setFacilityIds, setPage, setSelectedDateRange } = careNotesSlice.actions
 export default careNotesSlice.reducer

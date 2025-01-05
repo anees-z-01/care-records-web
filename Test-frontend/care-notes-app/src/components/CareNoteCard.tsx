@@ -1,49 +1,30 @@
-import type React from "react"
 import type { CareNote } from "../types"
-import { formatDate } from "../utils/formatDate"
+import { formatDateTime } from "../utils/formatDate"
 
-interface CareNoteCardProps {
-  note: CareNote
-}
-
-const PRIORITY_COLORS = {
-  1: 'bg-gray-100',
-  2: 'bg-blue-100',
-  3: 'bg-yellow-100',
-  4: 'bg-orange-100',
-  5: 'bg-red-100',
-}
-
-const CATEGORY_LABELS = {
+const CATEGORY_LABELS: Record<CareNote['category'], string> = {
   medication: 'Medication',
   observation: 'Observation',
   treatment: 'Treatment',
 }
 
-export const CareNoteCard: React.FC<CareNoteCardProps> = ({ note }) => {
+export function CareNoteCard({ note }: { note: CareNote }) {
   return (
-    <div className={`rounded-lg shadow-sm border border-gray-200 p-4 mb-3 hover:shadow-md transition-shadow ${PRIORITY_COLORS[note.priority]}`}>
-      <div className="flex justify-between items-start mb-2">
+    <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="mb-2 flex items-start justify-between gap-3">
         <div>
-          <h3 className="font-semibold text-gray-900 text-lg">Patient {note.patient_id}</h3>
-          <p className="text-sm text-gray-500">By {note.created_by}</p>
+          <h3 className="font-medium">{CATEGORY_LABELS[note.category] ?? note.category}</h3>
+          <p className="text-sm text-slate-500">Patient ID: {note.patient_id}</p>
         </div>
-        <div className="text-right">
-          <span className="text-sm text-gray-500 whitespace-nowrap">{formatDate(note.created_at)}</span>
-          <div className="flex items-center mt-1 space-x-2">
-            <span className="text-xs font-medium px-2 py-1 rounded-full bg-white">
-              Priority {note.priority}
-            </span>
-            <span className="text-xs font-medium px-2 py-1 rounded-full bg-white">
-              {CATEGORY_LABELS[note.category]}
-            </span>
-          </div>
-        </div>
+        <span className="rounded bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">
+          Priority {note.priority}
+        </span>
       </div>
-      <p className="text-gray-700 leading-relaxed mt-2">{note.note_content}</p>
-      <div className="mt-2 text-xs text-gray-500">
-        Facility ID: {note.facility_id} • Tenant ID: {note.tenant_id}
+      <p className="mb-2 whitespace-pre-line text-slate-800">{note.note_content}</p>
+      <div className="flex flex-wrap justify-between gap-2 text-sm text-slate-500">
+        <span>Created by: {note.created_by}</span>
+        <span>Facility {note.facility_id}</span>
+        <time dateTime={note.created_at}>{formatDateTime(note.created_at)}</time>
       </div>
-    </div>
+    </article>
   )
 }

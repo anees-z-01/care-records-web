@@ -1,117 +1,40 @@
-import type { CareNote, CareNoteInput, CareStats } from "../types"
-import type { DateRange } from '../components/DateRangeSelector'
+import type { CareNote, CareNoteInput, CareStats, DateRange, PaginatedNotes } from "../types"
 
 export const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/$/, '')
 export const API_BASE_URL = `${API_ORIGIN}/api`
 
-export interface CareNoteDTO {
-  id: number
-  tenant_id: number
-  facility_id: number
-  patient_id: string
-  category: 'medication' | 'observation' | 'treatment'
-  priority: 1 | 2 | 3 | 4 | 5
-  created_at: string
-  created_by: string
-  note_content: string
+export const DEFAULT_PAGE_SIZE = 20
+
+async function readJson<T>(response: Response, failure: string): Promise<T> {
+  if (!response.ok) {
+    throw new Error(`${failure} (HTTP ${response.status})`)
+  }
+  return response.json() as Promise<T>
 }
 
-class CareNotesAPI {
-  private baseURL = API_ORIGIN
+export const careNotesAPI = {
+  async fetchStats(tenantId: number, facilityIds: number[], dateRange: DateRange): Promise<CareStats> {
+    const params = new URLSearchParams({ tenant_id: String(tenantId), range: dateRange })
+    if (facilityIds.length) params.set('facility_ids', facilityIds.join(','))
+    return readJson(await fetch(`${API_BASE_URL}/care-stats?${params}`), 'Could not load statistics')
+  },
 
-  async fetchStats(tenantId: number, facilityIds?: number[], dateRange: DateRange = 'today'): Promise<CareStats> {
+  async fetchNotes(tenantId: number, facilityIds: number[], page = 1, pageSize = DEFAULT_PAGE_SIZE): Promise<PaginatedNotes> {
     const params = new URLSearchParams({
-      tenant_id: tenantId.toString(),
-      range: dateRange,
+      tenant_id: String(tenantId),
+      page: String(page),
+      page_size: String(pageSize),
     })
-
-    if (facilityIds?.length) {
-      params.append('facility_ids', facilityIds.join(','))
-    }
-
-    const url = `${this.baseURL}/api/care-stats?${params}`
-    const response = await fetch(url)
-    if (!response.ok) {
-      throw new Error(`Failed to fetch stats: ${response.statusText}`)
-    }
-
-    const stats = await response.json()
-    return stats
-  }
-
-  async fetchNotes(tenantId?: number, facilityIds?: number[], page: number = 1, pageSize: number = 20): Promise<PaginatedResponse> {
-    try {
-      const params = new URLSearchParams({
-        page: page.toString(),
-        page_size: pageSize.toString()
-      })
-
-      if (tenantId) {
-        params.append('tenant_id', tenantId.toString())
-      }
-
-      if (facilityIds?.length) {
-        params.append('facility_ids', facilityIds.join(','))
-      }
-
-      const response = await fetch(`${API_BASE_URL}/care-notes?${params}`)
-      if (!response.ok) {
-        throw new Error('Failed to fetch notes')
-      }
-      return response.json()
-    } catch (error) {
-      console.error("Error fetching notes from API:", error)
-      throw new Error("Failed to fetch notes from server")
-    }
-  }
+    if (facilityIds.length) params.set('facility_ids', facilityIds.join(','))
+    return readJson(await fetch(`${API_BASE_URL}/care-notes?${params}`), 'Could not load care notes')
+  },
 
   async createNote(noteInput: CareNoteInput): Promise<CareNote> {
-    try {
-      const response = await fetch(`${API_BASE_URL}/care-notes`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(noteInput),
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to create note')
-      }
-
-      return response.json()
-    } catch (error) {
-      console.error("Error creating note via API:", error)
-      throw new Error("Failed to create note")
-    }
-  }
-
-  async runPerformanceTest(): Promise<{ message: string }> {
-    try {
-      const response = await fetch(`${API_BASE_URL}/run-performance-test`, {
-        method: "POST",
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      return await response.json()
-    } catch (error) {
-      console.error("Error running performance test:", error)
-      throw new Error("Failed to run performance test")
-    }
-  }
+    const response = await fetch(`${API_BASE_URL}/care-notes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(noteInput),
+    })
+    return readJson(response, 'Could not save the note')
+  },
 }
-
-interface PaginatedResponse {
-  notes: CareNote[]
-  pagination: {
-    total: number
-    page: number
-    page_size: number
-    total_pages: number
-  }
-}
-
-export const careNotesAPI = new CareNotesAPI()

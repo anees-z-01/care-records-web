@@ -5,6 +5,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { useRouter } from 'next/navigation'
 import { AppDispatch, RootState } from '../app/store'
 import { addNote } from '../features/careNotes/careNotesThunks'
+import { facilitiesForTenant } from '../features/careNotes/scope'
 
 export function AddNoteForm({ onSuccess }: { onSuccess?: () => void } = {}) {
   const dispatch = useDispatch<AppDispatch>()
@@ -47,7 +48,7 @@ export function AddNoteForm({ onSuccess }: { onSuccess?: () => void } = {}) {
       <div className="space-y-6">
         <p className="text-sm text-slate-600">Synthetic examples only · Tenant {selectedTenantId}</p>
         {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
-        <div><label htmlFor="facility_id">Facility</label><select id="facility_id" value={facilityId} onChange={event=>setFacilityId(Number(event.target.value))}>{Array.from({length:5},(_,index)=>selectedTenantId*10+index+1).map(id=><option key={id} value={id}>Facility {id}</option>)}</select></div>
+        <div><label htmlFor="facility_id">Facility</label><select id="facility_id" value={facilityId} onChange={event=>setFacilityId(Number(event.target.value))}>{facilitiesForTenant(selectedTenantId).map(id=><option key={id} value={id}>Facility {id}</option>)}</select></div>
         <div>
           <label htmlFor="patient_id" className="block text-sm font-medium text-gray-700">
             Patient ID

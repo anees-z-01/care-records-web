@@ -3,14 +3,14 @@
 import { useDispatch, useSelector } from 'react-redux'
 import type { RootState, AppDispatch } from '../app/store'
 import { setTenantId, setFacilityIds } from '../features/careNotes/careNotesSlice'
+import { TENANT_IDS, facilitiesForTenant } from '../features/careNotes/scope'
 
 export function TenantSelector() {
   const dispatch = useDispatch<AppDispatch>()
   const { selectedTenantId, selectedFacilityIds } = useSelector((state: RootState) => state.careNotes)
 
-  // Hardcoded tenant and facility options for demo
-  const tenants = Array.from({ length: 10 }, (_, i) => i + 1)
-  const facilities = Array.from({ length: 5 }, (_, i) => selectedTenantId * 10 + i + 1)
+  const tenants = TENANT_IDS
+  const facilities = facilitiesForTenant(selectedTenantId)
 
   return (
     <div className="bg-white shadow-sm rounded-lg p-4 mb-6">
