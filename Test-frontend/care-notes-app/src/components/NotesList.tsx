@@ -5,7 +5,6 @@ import { Box, Button, Typography } from '@mui/material';
 interface NotesListProps {
   notes: CareNote[];
   loading: boolean;
-  error: string | null;
   pagination: Pagination;
   onPageChange: (page: number) => void;
 }
@@ -13,11 +12,10 @@ interface NotesListProps {
 export const NotesList: React.FC<NotesListProps> = ({
   notes,
   loading,
-  error,
   pagination,
   onPageChange,
 }) => {
-  if (loading) {
+  if (loading && notes.length === 0) {
     return (
       <Box className="flex items-center justify-center p-4">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -25,18 +23,10 @@ export const NotesList: React.FC<NotesListProps> = ({
     );
   }
 
-  if (error) {
-    return (
-      <Box className="text-red-600 p-4">
-        {error}
-      </Box>
-    );
-  }
-
   if (notes.length === 0) {
     return (
       <Box className="text-gray-500 text-center p-4">
-        No notes available
+        No notes for this tenant and facility selection.
       </Box>
     );
   }

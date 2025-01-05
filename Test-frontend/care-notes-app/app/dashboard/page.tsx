@@ -4,25 +4,34 @@ import { useEffect } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { RootState, AppDispatch } from '../../src/app/store'
 import { syncStatsFromAPI } from '../../src/features/careNotes/careNotesThunks'
+import type { DateRange } from '../../src/components/DateRangeSelector'
+
+const RANGE_LABELS: Record<DateRange, string> = {
+  today: 'Today',
+  this_week: 'This week',
+  this_month: 'This month',
+  this_year: 'This year',
+  all_time: 'All time',
+}
 
 export default function DashboardPage() {
   const dispatch = useDispatch<AppDispatch>()
-  const { stats, loading, error } = useSelector((state: RootState) => state.careNotes)
+  const { stats, statsLoading, statsError, selectedTenantId, selectedFacilityIds, selectedDateRange } = useSelector((state: RootState) => state.careNotes)
+  const rangeLabel = RANGE_LABELS[selectedDateRange]
 
   useEffect(() => {
     dispatch(syncStatsFromAPI())
-
-    // Refresh stats every minute
     const interval = setInterval(() => {
       dispatch(syncStatsFromAPI())
     }, 60000)
 
     return () => clearInterval(interval)
-  }, [dispatch])
+  }, [dispatch, selectedTenantId, selectedFacilityIds, selectedDateRange])
 
   return (
     <div>
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">Dashboard</h1>
+      <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
+      <p className="text-sm text-gray-600 mb-6">Tenant {selectedTenantId} · {rangeLabel}</p>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="bg-white p-6 rounded-lg shadow-sm">
@@ -105,22 +114,22 @@ export default function DashboardPage() {
                   <span className="font-medium text-gray-900">Facility {facilityId}</span>
                   <span className="text-2xl font-bold text-blue-600">{count}</span>
                 </div>
-                <p className="text-sm text-gray-500 mt-1">notes today</p>
+                <p className="text-sm text-gray-500 mt-1">notes, {rangeLabel.toLowerCase()}</p>
               </div>
             ))}
         </div>
       </div>
 
-      {loading && (
+      {statsLoading && (
         <div className="fixed bottom-4 right-4 bg-white rounded-lg shadow-lg p-4 flex items-center">
           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
           <span className="text-gray-600">Updating stats...</span>
         </div>
       )}
 
-      {error && (
-        <div className="fixed bottom-4 right-4 bg-red-50 text-red-800 rounded-lg shadow-lg p-4">
-          {error}
+      {statsError && (
+        <div role="alert" className="fixed bottom-4 right-4 bg-red-50 text-red-800 rounded-lg shadow-lg p-4">
+          {statsError}
         </div>
       )}
     </div>

@@ -44,6 +44,7 @@ export interface CareNotesState {
   activeNotesRequestId?: string
   activeStatsRequestId?: string
   statsLoading?: boolean
+  statsError: string | null
   selectedFacilityIds: number[]
   pagination: {
     currentPage: number

@@ -1,5 +1,5 @@
 import { createAsyncThunk } from "@reduxjs/toolkit"
-import { careNotesAPI, API_BASE_URL } from "../../api/careNotesAPI"
+import { careNotesAPI } from "../../api/careNotesAPI"
 import type { CareNoteInput, CareNote, RootState } from "../../types"
 import { setError } from "./careNotesSlice"
 
@@ -102,19 +102,5 @@ export const runPerformanceTest = createAsyncThunk(
 
 export const addNote = createAsyncThunk(
   "careNotes/addNote",
-  async (note: Partial<CareNote>) => {
-    const response = await fetch(`${API_BASE_URL}/care-notes`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(note),
-    })
-
-    if (!response.ok) {
-      throw new Error('Failed to add note')
-    }
-
-    return response.json()
-  }
+  async (note: CareNoteInput) => careNotesAPI.createNote(note)
 )

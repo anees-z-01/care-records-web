@@ -23,7 +23,6 @@ class CareNotesAPI {
     const params = new URLSearchParams({
       tenant_id: tenantId.toString(),
       range: dateRange,
-      optimized: 'true'
     })
 
     if (facilityIds?.length) {

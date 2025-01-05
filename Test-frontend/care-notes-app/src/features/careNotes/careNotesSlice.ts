@@ -8,6 +8,7 @@ const initialState: CareNotesState = {
   stats: null,
   loading: false,
   error: null,
+  statsError: null,
   lastSync: null,
   selectedTenantId: 1,
   selectedFacilityIds: [],
@@ -113,6 +114,7 @@ const careNotesSlice = createSlice({
     builder.addCase(syncStatsFromAPI.pending, (state, action) => {
       state.activeStatsRequestId = action.meta.requestId
       state.statsLoading = true
+      state.statsError = null
     })
     builder.addCase(syncStatsFromAPI.fulfilled, (state, action) => {
       if (state.activeStatsRequestId !== action.meta.requestId) return
@@ -123,21 +125,21 @@ const careNotesSlice = createSlice({
     builder.addCase(syncStatsFromAPI.rejected, (state, action) => {
       if (state.activeStatsRequestId !== action.meta.requestId) return
       state.statsLoading = false
-      state.error = "Could not load statistics for this selection"
+      state.statsError = "Could not load statistics for this selection"
     })
 
     // Add new note
-    builder.addCase(addNote.pending, (state) => {
-      state.loading = true
-      state.error = null
-    })
     builder.addCase(addNote.fulfilled, (state, action) => {
-      state.notes.unshift(action.payload)
-      state.loading = false
-    })
-    builder.addCase(addNote.rejected, (state, action) => {
-      state.loading = false
-      state.error = action.error.message || "Failed to add note"
+      const note = action.payload
+      const inScope =
+        note.tenant_id === state.selectedTenantId &&
+        (state.selectedFacilityIds.length === 0 || state.selectedFacilityIds.includes(note.facility_id))
+      if (!inScope) return
+      state.pagination.totalItems += 1
+      if (state.pagination.currentPage === 1) {
+        state.notes.unshift(note)
+        state.notes.splice(state.pagination.pageSize)
+      }
     })
   },
 })
