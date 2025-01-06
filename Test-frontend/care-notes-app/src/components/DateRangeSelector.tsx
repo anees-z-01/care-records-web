@@ -15,15 +15,13 @@ interface DateRangeSelectorProps {
 
 export function DateRangeSelector({ selectedRange, onRangeChange }: DateRangeSelectorProps) {
   return (
-    <div className="rounded-lg bg-white p-4 shadow-sm">
-      <label htmlFor="date-range" className="mb-1 block text-sm font-medium text-slate-700">
-        Statistics range
-      </label>
+    <div>
+      <label htmlFor="date-range" className="field-label">Statistics range</label>
       <select
         id="date-range"
         value={selectedRange}
         onChange={event => onRangeChange(event.target.value as DateRange)}
-        className="block w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+        className="field-control"
       >
         {Object.entries(DATE_RANGE_LABELS).map(([value, label]) => (
           <option key={value} value={value}>{label}</option>

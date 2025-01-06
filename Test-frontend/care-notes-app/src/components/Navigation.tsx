@@ -3,35 +3,40 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
+const LINKS = [
+  { href: '/', label: 'Notes' },
+  { href: '/dashboard', label: 'Dashboard' },
+]
+
 export function Navigation() {
   const pathname = usePathname()
 
   return (
-    <nav className="bg-white shadow-sm">
-      <div className="max-w-4xl mx-auto px-4 py-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-8">
-            <Link
-              href="/"
-              className={`text-gray-900 hover:text-blue-600 font-medium ${pathname === '/' ? 'text-blue-600' : ''}`}
-            >
-              Home
-            </Link>
-            <Link
-              href="/dashboard"
-              className={`text-gray-900 hover:text-blue-600 font-medium ${pathname === '/dashboard' ? 'text-blue-600' : ''}`}
-            >
-              Dashboard
-            </Link>
-          </div>
-          <Link
-            href="/add-note"
-            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
-          >
-            + Add Note
-          </Link>
-        </div>
-      </div>
-    </nav>
+    <header className="border-b border-line bg-white">
+      <nav aria-label="Main" className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3 sm:px-6">
+        <Link href="/" className="font-serif text-xl font-semibold text-pine-800">
+          Care notes
+        </Link>
+        <ul className="flex gap-1">
+          {LINKS.map(link => {
+            const active = pathname === link.href
+            return (
+              <li key={link.href}>
+                <Link
+                  href={link.href}
+                  aria-current={active ? 'page' : undefined}
+                  className={`rounded-md px-3 py-2 text-sm font-medium ${active ? 'bg-pine-50 text-pine-800' : 'text-muted hover:text-ink'}`}
+                >
+                  {link.label}
+                </Link>
+              </li>
+            )
+          })}
+        </ul>
+        <Link href="/add-note" className="btn-primary ml-auto">
+          Add note
+        </Link>
+      </nav>
+    </header>
   )
 }

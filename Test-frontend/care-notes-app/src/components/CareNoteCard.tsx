@@ -1,30 +1,33 @@
 import type { CareNote } from "../types"
 import { formatDateTime } from "../utils/formatDate"
 
-const CATEGORY_LABELS: Record<CareNote['category'], string> = {
-  medication: 'Medication',
-  observation: 'Observation',
-  treatment: 'Treatment',
+const CATEGORY_STYLE: Record<CareNote['category'], { label: string; accent: string }> = {
+  medication: { label: 'Medication', accent: 'border-l-clay-600' },
+  observation: { label: 'Observation', accent: 'border-l-pine-600' },
+  treatment: { label: 'Treatment', accent: 'border-l-ink' },
 }
 
 export function CareNoteCard({ note }: { note: CareNote }) {
+  const style = CATEGORY_STYLE[note.category] ?? { label: note.category, accent: 'border-l-line' }
+
   return (
-    <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="mb-2 flex items-start justify-between gap-3">
+    <article className={`rounded-lg border border-l-4 border-line bg-white p-4 ${style.accent}`}>
+      <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h3 className="font-medium">{CATEGORY_LABELS[note.category] ?? note.category}</h3>
-          <p className="text-sm text-slate-500">Patient ID: {note.patient_id}</p>
+          <h3 className="text-lg font-semibold">{style.label}</h3>
+          <p className="text-sm text-muted">
+            Resident <span className="font-mono text-ink">{note.patient_id}</span> · Facility {note.facility_id}
+          </p>
         </div>
-        <span className="rounded bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">
+        <span className="rounded-full border border-line px-2.5 py-0.5 text-xs font-medium text-ink">
           Priority {note.priority}
         </span>
       </div>
-      <p className="mb-2 whitespace-pre-line text-slate-800">{note.note_content}</p>
-      <div className="flex flex-wrap justify-between gap-2 text-sm text-slate-500">
-        <span>Created by: {note.created_by}</span>
-        <span>Facility {note.facility_id}</span>
+      <p className="whitespace-pre-line leading-relaxed">{note.note_content}</p>
+      <p className="mt-3 flex flex-wrap justify-between gap-2 text-xs text-muted">
+        <span>Recorded by {note.created_by}</span>
         <time dateTime={note.created_at}>{formatDateTime(note.created_at)}</time>
-      </div>
+      </p>
     </article>
   )
 }

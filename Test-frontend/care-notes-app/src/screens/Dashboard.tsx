@@ -29,13 +29,13 @@ export function Dashboard() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-3xl font-semibold">Dashboard</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          {describeScope(selectedTenantId, selectedFacilityIds)} · {rangeLabel}
+        <h1 className="text-3xl font-semibold sm:text-4xl">Dashboard</h1>
+        <p className="mt-2 text-sm text-muted">
+          {describeScope(selectedTenantId, selectedFacilityIds)} · {rangeLabel}. Change the selection on the Notes page.
         </p>
       </header>
 
-      <StatsDisplay stats={stats} loading={statsLoading && !stats} error={statsError} />
+      <StatsDisplay stats={stats} loading={statsLoading} error={statsError} onRetry={() => dispatch(syncStatsFromAPI())} />
 
       {stats && (
         <>
@@ -44,16 +44,16 @@ export function Dashboard() {
             <PriorityDistribution data={stats.by_priority} />
           </div>
 
-          <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+          <section className="panel">
             <h2 className="mb-4 text-lg font-semibold">Notes by facility</h2>
             {facilities.length === 0 ? (
-              <p className="text-sm text-slate-500">No facility reported notes in this range.</p>
+              <p className="text-sm text-muted">No facility reported notes in this range.</p>
             ) : (
               <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {facilities.map(([facilityId, count]) => (
-                  <li key={facilityId} className="flex items-center justify-between rounded-lg bg-slate-50 p-4">
+                  <li key={facilityId} className="flex items-center justify-between rounded-lg bg-pine-50 p-4">
                     <span className="font-medium">Facility {facilityId}</span>
-                    <span className="text-2xl font-semibold text-teal-800">{count}</span>
+                    <span className="font-serif text-2xl font-semibold text-pine-800">{count}</span>
                   </li>
                 ))}
               </ul>

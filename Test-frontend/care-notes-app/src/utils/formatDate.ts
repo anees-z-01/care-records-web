@@ -18,3 +18,7 @@ export function formatDateTime(value: string, locale = "en-GB"): string {
   if (Number.isNaN(date.getTime())) return value
   return date.toLocaleString(locale, DATE_TIME_FORMAT)
 }
+
+export function formatTime(value: string, locale = "en-GB"): string {
+  return parseApiDate(value).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })
+}

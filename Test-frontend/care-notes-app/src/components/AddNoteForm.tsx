@@ -1,79 +1,85 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
+import Link from 'next/link'
 import { useDispatch, useSelector } from 'react-redux'
 import { useRouter } from 'next/navigation'
-import { AppDispatch, RootState } from '../app/store'
+import type { AppDispatch, RootState } from '../app/store'
 import { addNote } from '../features/careNotes/careNotesThunks'
 import { facilitiesForTenant } from '../features/careNotes/scope'
+import type { NoteCategory, NotePriority } from '../types'
+
+// Mirrors the API's CareNoteCreate limits so the browser catches them first.
+const MAX_ID_LENGTH = 64
+const MAX_NOTE_LENGTH = 10_000
+
+const SAVE_ERROR = 'The note could not be saved. Your draft is still here; check that the API is running and try again.'
 
 export function AddNoteForm({ onSuccess }: { onSuccess?: () => void } = {}) {
   const dispatch = useDispatch<AppDispatch>()
   const router = useRouter()
   const { selectedTenantId, selectedFacilityIds } = useSelector((state: RootState) => state.careNotes)
-  const [facilityId, setFacilityId] = useState(selectedFacilityIds[0] || selectedTenantId * 10 + 1)
+  const [facilityId, setFacilityId] = useState(selectedFacilityIds[0] ?? facilitiesForTenant(selectedTenantId)[0])
   const [error, setError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     patient_id: '',
-    category: 'observation' as 'medication' | 'observation' | 'treatment',
-    priority: 3 as 1 | 2 | 3 | 4 | 5,
+    category: 'observation' as NoteCategory,
+    priority: 3 as NotePriority,
     created_by: '',
-    note_content: ''
+    note_content: '',
   })
-  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const update = <K extends keyof typeof formData>(key: K, value: (typeof formData)[K]) =>
+    setFormData(previous => ({ ...previous, [key]: value }))
+
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault()
     setIsSubmitting(true)
     setError('')
 
     try {
-      await dispatch(addNote({
-        ...formData,
-        tenant_id: selectedTenantId,
-        facility_id: facilityId,
-      })).unwrap()
-
+      await dispatch(addNote({ ...formData, tenant_id: selectedTenantId, facility_id: facilityId })).unwrap()
       if (onSuccess) onSuccess()
       else router.push('/')
     } catch {
-      setError('The note could not be saved. Your draft is still here; check the local API and try again.')
+      setError(SAVE_ERROR)
     } finally {
       setIsSubmitting(false)
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white shadow-sm rounded-lg p-6">
-      <div className="space-y-6">
-        <p className="text-sm text-slate-600">Synthetic examples only · Tenant {selectedTenantId}</p>
-        {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
-        <div><label htmlFor="facility_id">Facility</label><select id="facility_id" value={facilityId} onChange={event=>setFacilityId(Number(event.target.value))}>{facilitiesForTenant(selectedTenantId).map(id=><option key={id} value={id}>Facility {id}</option>)}</select></div>
+    <form onSubmit={handleSubmit} className="panel space-y-5" aria-describedby="form-scope">
+      <p id="form-scope" className="text-sm text-muted">
+        Saving to <strong className="text-ink">tenant {selectedTenantId}</strong>. Use invented resident IDs and names only.
+      </p>
+      {error && <p role="alert" className="rounded-md bg-clay-50 p-3 text-sm text-clay-700">{error}</p>}
+
+      <div className="grid gap-5 sm:grid-cols-2">
         <div>
-          <label htmlFor="patient_id" className="block text-sm font-medium text-gray-700">
-            Patient ID
-          </label>
+          <label htmlFor="facility_id" className="field-label">Facility</label>
+          <select id="facility_id" className="field-control" value={facilityId} onChange={event => setFacilityId(Number(event.target.value))}>
+            {facilitiesForTenant(selectedTenantId).map(id => <option key={id} value={id}>Facility {id}</option>)}
+          </select>
+        </div>
+
+        <div>
+          <label htmlFor="patient_id" className="field-label">Resident ID</label>
           <input
-            type="text"
             id="patient_id"
+            className="field-control font-mono"
+            placeholder="DEMO-P11-04"
             value={formData.patient_id}
-            onChange={(e) => setFormData(prev => ({ ...prev, patient_id: e.target.value }))}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            maxLength={MAX_ID_LENGTH}
+            onChange={event => update('patient_id', event.target.value)}
             required
           />
         </div>
 
         <div>
-          <label htmlFor="category" className="block text-sm font-medium text-gray-700">
-            Category
-          </label>
-          <select
-            id="category"
-            value={formData.category}
-            onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value as 'medication' | 'observation' | 'treatment' }))}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            required
-          >
+          <label htmlFor="category" className="field-label">Category</label>
+          <select id="category" className="field-control" value={formData.category} onChange={event => update('category', event.target.value as NoteCategory)}>
             <option value="medication">Medication</option>
             <option value="observation">Observation</option>
             <option value="treatment">Treatment</option>
@@ -81,68 +87,51 @@ export function AddNoteForm({ onSuccess }: { onSuccess?: () => void } = {}) {
         </div>
 
         <div>
-          <label htmlFor="priority" className="block text-sm font-medium text-gray-700">
-            Priority
-          </label>
+          <label htmlFor="priority" className="field-label">Priority</label>
           <select
             id="priority"
+            className="field-control"
             value={formData.priority}
-            onChange={(e) => setFormData(prev => ({ ...prev, priority: Number(e.target.value) as 1 | 2 | 3 | 4 | 5 }))}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            required
+            aria-describedby="priority-hint"
+            onChange={event => update('priority', Number(event.target.value) as NotePriority)}
           >
-            <option value="1">1</option>
-            <option value="2">2</option>
-            <option value="3">3</option>
-            <option value="4">4</option>
-            <option value="5">5</option>
+            {[1, 2, 3, 4, 5].map(priority => <option key={priority} value={priority}>{priority}</option>)}
           </select>
+          <p id="priority-hint" className="mt-1 text-xs text-muted">The API stores 1 to 5 without defining which end is most urgent.</p>
         </div>
 
-        <div>
-          <label htmlFor="created_by" className="block text-sm font-medium text-gray-700">
-            Care Provider Name
-          </label>
+        <div className="sm:col-span-2">
+          <label htmlFor="created_by" className="field-label">Recorded by</label>
           <input
-            type="text"
             id="created_by"
+            className="field-control"
+            placeholder="demo-carer-07"
             value={formData.created_by}
-            onChange={(e) => setFormData(prev => ({ ...prev, created_by: e.target.value }))}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            maxLength={MAX_ID_LENGTH}
+            onChange={event => update('created_by', event.target.value)}
             required
           />
         </div>
 
-        <div>
-          <label htmlFor="note_content" className="block text-sm font-medium text-gray-700">
-            Care Note
-          </label>
+        <div className="sm:col-span-2">
+          <label htmlFor="note_content" className="field-label">Note</label>
           <textarea
             id="note_content"
+            className="field-control"
+            rows={5}
             value={formData.note_content}
-            onChange={(e) => setFormData(prev => ({ ...prev, note_content: e.target.value }))}
-            rows={4}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            maxLength={MAX_NOTE_LENGTH}
+            onChange={event => update('note_content', event.target.value)}
             required
           />
         </div>
+      </div>
 
-        <div className="flex justify-end space-x-4">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50"
-          >
-            {isSubmitting ? 'Adding...' : 'Add Note'}
-          </button>
-        </div>
+      <div className="flex flex-wrap justify-end gap-3">
+        <Link href="/" className="btn-secondary">Cancel</Link>
+        <button type="submit" className="btn-primary" disabled={isSubmitting}>
+          {isSubmitting ? 'Saving…' : 'Save note'}
+        </button>
       </div>
     </form>
   )
