@@ -36,7 +36,7 @@ export function AddNoteForm({ onSuccess }: { onSuccess?: () => void } = {}) {
 
       if (onSuccess) onSuccess()
       else router.push('/')
-    } catch (error) {
+    } catch {
       setError('The note could not be saved. Your draft is still here; check the local API and try again.')
     } finally {
       setIsSubmitting(false)
